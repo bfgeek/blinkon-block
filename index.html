@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Helvetica'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+			.remark-inline-code { background: #F0F0F0; padding: 4px; border-radius: 2px; }
+
+			iframe { width: 100%; height: 100%; }
+      p, li { line-height: 1.4; }
+      td { min-width: 170px; border- }
+      table { border-collapse: collapse; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Block Layout!
+
+### Or... margin collapsing ♥ floats.
+
+##### ikilpatrick@ Sep 2017
+
+---
+
+# CSS Terminology
+
+ - Formatting Context aka. FC
+
+	 - Is just a layout mode in CSS. E.g. a node with `display: flex` is just a
+    _Flex_ Formatting Context.
+
+ - Block Formatting Context aka. BFC
+
+    - A new _Block_ layout mode. _Not_ all nodes which have `display: block`
+      create a new formatting context.
+
+      ```html
+      <div style="float: left;"> <!-- NEW BFC -->
+        <div style="display: block;"></div> <!-- NOT A NEW BFC -->
+        <div style="display: block; overflow: hidden;"></div> <!-- NEW BFC -->
+      </div>
+      ```
+
+     - Floats, `overflow: hidden`, `display: flow-root`, flex/grid children, etc...
+
+---
+
+# LayoutNG Terminology (outputs)
+
+ - `NGPhysicalFragment` aka. Fragment
+
+    - Contains all the post-layout information. May be multiple per input node.
+      E.g. a child inside of a `columns: 2` may _fragment_ and produce
+      <b>two</b> fragments!
+
+ - `NGLayoutResult`
+
+    - Contains a `NGPhysicalFragment`, and additional information <b>only</b>
+      needed by layout.
+
+---
+
+# LayoutNG Terminology (inputs)
+
+ - `NGConstraintSpace`
+
+   - Contains all of the layout information from a parent, e.g. available space,
+    percentage resolution size, fragmentation line, etc.
+
+   - We may rename this to `NGLayoutConstraints`.
+
+ - `NGExclusionSpace`
+
+   - Floats are so special they get their own input object!
+
+ - `NGLayoutInputNode`, `NGBlockNode`, `NGInlineNode`
+
+   - Children of layout, can call `Layout(constraints, break_token)` to get a
+    fragment. Mostly a `const` wrapper around a `LayoutObject`.
+
+ - `NGBreakToken`
+
+   - Passed to a `Layout` method call. Used to tell the child to "resume" from
+    a certain point.
+
+---
+
+# LayoutNG  - **<span style="color: hotpink;">MOST IMPORTANT SLIDE</span>**
+
+ - The inputs (`NGConstraintSpace`) and outputs (`NGLayoutResult`,
+    `NGPhysicalFragment`) are **IMMUTABLE**.
+
+ - **DON'T BREAK THIS**.
+
+ - This is enforced by `const` correctness.
+---
+
+class: center, middle
+
+# Margin Collapsing!
+
+### A "quick" introduction
+
+---
+class: center, middle
+<iframe src="1.html" frameborder="0"></iframe>
+
+---
+
+# Margin Collapsing Rule(s)
+
+ - Resulting margin the sum of:
+   
+   - _Maximum_ of the positive margins.
+
+   - _Minimum_ of the negative margins.
+
+---
+class: center, middle
+<iframe src="2.html" frameborder="0"></iframe>
+
+---
+class: center, middle
+<iframe src="3.html" frameborder="0"></iframe>
+
+---
+class: center, middle
+<iframe src="4.html" frameborder="0"></iframe>
+
+---
+
+# Margin Collapsing "Empty Blocks"
+
+ - This is known as "collapsing through".
+
+ - It is a terrible idea.
+
+---
+class: center, middle
+<iframe src="5.html" frameborder="0"></iframe>
+
+---
+class: center, middle
+<iframe src="6.html" frameborder="0"></iframe>
+
+---
+
+# Margin Collapsing
+
+ - `NGMarginStrut`
+
+   - Is a tuple!
+
+   ```cpp
+   struct NGMarginStrut {
+     LayoutUnit positive_margin;
+     LayoutUnit negative_margin;
+   };
+   ```
+
+   - `NGConstraintSpace` has an _input_ `NGMarginStrut`.
+
+   - `NGLayoutResult` has an _output_ `NGMarginStrut`.
+
+---
+class: center, middle
+<iframe src="5.html" frameborder="0"></iframe>
+
+---
+
+# LayoutNG ♥ BFC Offsets
+
+ - `NGBfcOffset` is a special offset within LayoutNG which is relative to the
+   parent BFC coordinate system.
+
+ - You can't really do things correctly without knowing where you are relative
+   to the BFC coordinate system.
+
+ - This is a layout internal concept.
+
+```cpp
+struct NGBfcOffset {
+  LayoutUnit line_offset;
+  LayoutUnit block_offset;
+};
+```
+
+---
+
+# Positioning with `NGBfcOffset`.
+
+ - A child may choose to "resolve" its `NGBfcOffset`. This is done by
+  determining the final margin. E.g.
+
+  ```cpp
+  NGBfcOffset offset = margin_strut_offset;
+  offset.block_offset += margin_strut.Sum();
+  ```
+
+ - A child will "resolve" its `NGBfcOffset` under the following circumstances:
+
+   - Border/padding block-start or block-end.
+   
+   - Non-zero height.
+
+   - Non-empty inline context (text, atomic-inlines, etc).
+
+   - A child has clearance.
+
+ - Basically when a child determines it is _non-empty_.
+
+---
+class: center, middle
+<iframe src="5.html" frameborder="0"></iframe>
+
+---
+
+# `NGBfcOffset` propogation.
+
+ - When a child "resolves" its `NGBfcOffset`, this may cause a parent to also
+  "resolve" its `NGBfcOffset`.
+
+|                                   |                                Parent BFCOffset                               |                  No Parent BFCOffset                  |
+|-----------------------------------|:-----------------------------------------------------------------------------:|:-----------------------------------------------------:|
+| Child BFCOffset<br>(non-empty block) | Both BFCOffsets are known.<br>Can determine relative offset by (child - parent). | Parent becomes non-empty.<br>"resolve" Parent BFCOffset. |
+|  No Child BFCOffset<br>(empty block) |              Parent can position child.<br>**May trigger relayout**.             |           Place child at block-offset of 0.           |
+
+---
+class: center, middle
+
+# Stretch! \o/
+
+---
+class: center, middle
+
+# Floats!
+
+---
+
+# Floats Rules
+
+ - Two types: `float: left`, `float: right`.
+
+ - Floats are positioned in the first fitting `NGLayoutOpportunity`.
+
+ - They align their top edge.
+
+---
+class: center, middle
+<iframe src="7.html" frameborder="0"></iframe>
+
+---
+class: center, middle
+<iframe src="8.html" frameborder="0"></iframe>
+
+---
+# `NGExclusionSpace`
+
+ - All float logic is encapsulated behind this interface.
+
+ - Used as an input (on `NGConstraintSpace`) and output (on `NGLayoutResult`)
+  to layout.
+
+ - Can _find_ all `NGLayoutOpportunity`s from a given point.
+
+ - Block-start edge of last float added to the exclusion space.
+
+ - Block-end of both the last left &amp; right float. (For clearance).
+---
+
+class: center, middle
+# Margin Collapsing ♥ Floats
+
+---
+class: center, middle
+<iframe src="9.html" frameborder="0"></iframe>
+---
+# Margin Collapsing ♥ Floats
+
+ - Each `NGLayoutResult` (layout output) has a list of `unpositioned_floats`.
+
+ - If a when **something** "resolves" its `NGBfcOffset`, we abort layout, and
+  re-layout all children which have `unpositioned_floats`.
+
+   - We give a `FloatsBfcOffset` as an additional input to layout such that
+    they can be positioned properly.
+
+ - A `NGConstraintSpace` (layout input) also has a list of
+  `unpositioned_floats`, this is because positioning **new** FCs is fun.
+
+---
+class: center, middle
+# Margin Collapsing ♥ Floats ♥ Clearance
+
+---
+class: center, middle
+<iframe src="10.html" frameborder="0"></iframe>
+
+---
+# Margin Collapsing ♥ Floats ♥ Clearance
+
+ - When something has `clear` specifed, `clearance_offset` is set as an
+  additional input to layout! (on the `NGConstraintSpace`).
+
+ - This is passed from `parent` → `child`.
+
+ - It is used when a child "resolves" its `NGBfcOffset`.
+
+   - `AdjustToClearance` call.
+
+ - This is then passed up in the `NGBfcOffset` propogation chain.
+
+---
+class: center, middle
+# Fin! \o/
+
+
+---
+class: center, middle
+# ...
+
+---
+class: center, middle
+# /o\
+
+---
+# Things which I didn't cover...
+ - Positioning **new** FCs within a Block Formatting Context.
+
+   - This is another 10 mins. This is the reason that we have
+    `unpositioned_floats` on the `NGConstraintSpace` &amp; `NGLayoutResult`.
+
+ - Empty blocks affected by clearance.
+
+ - Out of flow implmentation.
+
+ - Fragmentation.
+
+---
+class: center, middle
+# Questions! \o/
+
+---
+class: center, middle
+# Poll! \o/
+
+---
+class: center, middle
+# What should `NGConstraintSpace` be called?
+    </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+			slideshow.on('afterShowSlide', function (slide) {
+			const container = document.querySelector('.remark-slide-container.remark-visible .remark-slide-content');
+			const iframe = document.querySelector('.remark-slide-container.remark-visible iframe');
+
+			if (iframe) {
+        container.style.padding = '0.5em';
+			}
+
+				// Slide is the slide being navigated to
+			});
+    </script>
+  </body>
+</html>

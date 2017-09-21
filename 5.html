@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+<div id="controls">
+  <label>A - margin-top <input type="number" value="20" step="10" />px</label>
+  <label>B - margin-top <input type="number" value="10" step="10" />px</label>
+  <label>C - margin-top <input type="number" value="10" step="10" />px</label>
+  <label>C - margin-bottom <input type="number" value="10" step="10" />px</label>
+  <label>B - margin-bottom <input type="number" value="10" step="10" />px</label>
+  <label>D - margin-top <input type="number" value="10" step="10" />px</label>
+</div>
+
+<pre><code class="html"></code></pre>
+
+<fc>
+<div id="A" style="margin-top: 20px;">
+  <div id="B" style="margin-top: 10px; margin-bottom: 0px;" empty>
+    <div id="C" style="margin-top: 10px; margin-bottom: 0px;" empty></div>
+  </div>
+  <div id="D" style="margin-top: 10px;">A &gt; D</div>
+</div>
+</fc>
+
+<script src="script.js"></script>

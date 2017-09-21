@@ -1,0 +1,112 @@
+body {
+  display: flex;
+  justify-content: space-around;
+	flex-direction: column;
+
+  font-family: 'Helvetica';
+  font-size: 20px;
+  text-align: center;
+}
+input { width: 60px; font-size: 18px; }
+div > div { width: 80%; margin: 0 auto; }
+div { background-color: var(--color); line-height: 30px; }
+div[empty] { outline: solid 2px var(--color); }
+pre {
+	text-align: initial;
+  margin: 30px 0;
+}
+
+#controls {
+	display: flex;
+	flex-direction: column;
+	width: max-content;
+	text-align: end;
+	margin: 0 auto; 
+}
+label { margin: 10px 0 0 0; }
+
+fc {
+  --size: 10px;
+  --main-color: #ccc;
+	display: flow-root;
+	width: 200px;
+	border: solid 4px #ccc;
+  margin: 0 auto;
+  background:
+    linear-gradient(
+			45deg,
+			var(--main-color) 25%,
+			rgba(0,0,0,0) 25%,
+			rgba(0,0,0,0) 75%,
+			var(--main-color) 75%,
+			var(--main-color) 0),
+		linear-gradient(
+			45deg,
+			var(--main-color) 25%,
+			rgba(0,0,0,0) 25%,
+			rgba(0,0,0,0) 75%,
+			var(--main-color) 75%,
+			var(--main-color) 0),
+		rgb(255, 255, 255);
+  background-repeat: repeat none;
+  background-position: 0 0, var(--size) var(--size);
+  background-size: calc(var(--size) * 2) calc(var(--size) * 2);
+}
+
+#A { --color: #03a9f4; }
+#B { --color: #ffc107; }
+#C { --color: #7e57c2; }
+#D { --color: #ec407a; }
+#E { --color: #8bc34a; }
+
+div[float-left] {
+  --type: left;
+}
+
+div[float-right] {
+  --type: right;
+}
+
+div[float-left],
+div[float-right] {
+	float: var(--type);
+ 	width: 50px;
+ 	height: 50px; 
+	display: flex;
+	align-items: center;
+	justify-content: center;
+  background: repeating-linear-gradient(
+		45deg,
+		white,
+		white 10px,
+		var(--color) 10px,
+		var(--color) 20px
+	);
+	border: solid 4px var(--color);
+  box-sizing: border-box;
+}
+
+div[float-left]::after {
+  content: 'L';
+}
+
+div[float-right]::after {
+	content: 'R';
+}
+
+div[float-left]::after,
+div[float-right]::after {
+  padding: 0 5px;
+  background: white;
+  border-radius: 4px;
+}
+
+div[inflow] {
+  font-family: 'Ahem';
+  font-size: 20px;
+	background: initial;
+  border: solid 4px var(--color);
+  box-sizing: border-box;
+  color: var(--color);
+  line-height: 1.5em;
+}
